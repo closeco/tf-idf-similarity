@@ -3,7 +3,7 @@ module TfIdfSimilarity
     include MatrixMethods
 
     extend Forwardable
-    def_delegators :@model, :documents, :terms, :document_count
+    def_delegators :@model, :documents, :terms, :document_count, :term_index
 
     # @param [Array<Document>] documents documents
     # @param [Hash] opts optional arguments
@@ -12,10 +12,14 @@ module TfIdfSimilarity
       @model = TermCountModel.new(documents, opts)
       @library = (opts[:library] || :matrix).to_sym
 
-      array = Array.new(terms.size) do |i|
-        idf = inverse_document_frequency(terms[i])
-        Array.new(documents.size) do |j|
-          term_frequency(documents[j], terms[i]) * idf
+      array = Array.new(terms.size) { Array.new(documents.size, 0.0) }
+      documents.each_index do |j|
+        document = documents[j]
+        document.term_counts.each do |term_count|
+          term = term_count.first
+          i = term_index(term)
+          idf = inverse_document_frequency(term)
+          array[i][j] = term_count.last == 0 ? 0.0 : term_frequency(document, term) * idf
         end
       end
 

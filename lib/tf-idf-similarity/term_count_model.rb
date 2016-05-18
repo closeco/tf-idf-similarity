@@ -15,46 +15,47 @@ module TfIdfSimilarity
     # @option opts [Symbol] :library :gsl, :narray, :nmatrix or :matrix (default)
     def initialize(documents, opts = {})
       @documents = documents
-      @terms = Set.new(documents.map(&:terms).flatten).to_a
+      @terms = Hash.new
+      documents.each do |document|
+        document.terms.each do |term|
+          term_info = @terms[term] || [@terms.size, 0]
+          @terms[term] = [term_info.first, term_info.last + 1]
+        end
+      end
+
       @library = (opts[:library] || :matrix).to_sym
 
-      array = Array.new(terms.size) do |i|
-        Array.new(documents.size) do |j|
-          documents[j].term_count(terms[i])
+      array = Array.new(terms.size) { Array.new(documents.size, 0) }
+      documents.each_index do |j|
+        document = documents[j]
+        document.term_counts.each do |term_count|
+          i = term_index(term_count.first)
+          array[i][j] = term_count.last
         end
       end
 
       @matrix = initialize_matrix(array)
-
       @average_document_size = documents.empty? ? 0 : sum / column_size.to_f
+    end
+
+    # @param [String] term a term
+    # @return [Integer] index of the term in list all terms
+    def term_index(term)
+      term_info = terms[term]
+      term_info ? term_info.first : nil
     end
 
     # @param [String] term a term
     # @return [Integer] the number of documents the term appears in
     def document_count(term)
-      index = terms.index(term)
-      if index
-        case @library
-        when :gsl, :narray
-          row(index).where.size
-        when :nmatrix
-          row(index).each.count(&:nonzero?)
-        else
-          vector = row(index)
-          unless vector.respond_to?(:count)
-            vector = vector.to_a
-          end
-          vector.count(&:nonzero?)
-        end
-      else
-        0
-      end
+      term_info = terms[term]
+      term_info ? term_info.last : 0
     end
 
     # @param [String] term a term
     # @return [Integer] the number of times the term appears in the corpus
     def term_count(term)
-      index = terms.index(term)
+      index = term_index(term)
       if index
         case @library
         when :gsl, :narray

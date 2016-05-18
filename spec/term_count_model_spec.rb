@@ -84,7 +84,7 @@ module TfIdfSimilarity
 
       describe '#terms' do
         it 'should return the terms' do
-          model.terms.to_a.sort.should == ['bar', 'baz', 'foo', 'foo-foo']
+          model.terms.to_a.sort.should == [["bar", [1, 3]], ["baz", [3, 1]], ["foo", [0, 1]], ["foo-foo", [2, 1]]]
         end
       end
 
